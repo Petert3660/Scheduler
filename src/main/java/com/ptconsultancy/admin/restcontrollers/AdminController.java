@@ -2,9 +2,8 @@ package com.ptconsultancy.admin.restcontrollers;
 
 import com.ptconsultancy.admin.adminsupport.BuildVersion;
 import com.ptconsultancy.admin.adminsupport.ControllerConstants;
-import com.ptconsultancy.admin.security.SecurityToken;
+import com.ptconsultancy.admin.security.SecurityTokenManager;
 import com.ptconsultancy.messages.MessageHandler;
-import com.ptconsultancy.utilities.GenerateRandomKeys;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,12 +15,12 @@ public class AdminController {
 
     private MessageHandler messageHandler;
 
-    private SecurityToken securityToken;
+    private SecurityTokenManager securityTokenManager;
 
     @Autowired
-    public AdminController(MessageHandler messageHandler, SecurityToken securityToken) {
+    public AdminController(MessageHandler messageHandler, SecurityTokenManager securityTokenManager) {
         this.messageHandler = messageHandler;
-        this.securityToken = securityToken;
+        this.securityTokenManager = securityTokenManager;
     }
 
     @RequestMapping(path="/healthcheck", method=RequestMethod.GET)
@@ -36,8 +35,8 @@ public class AdminController {
     @RequestMapping(path="/shutdown/{id}/{pass}/{token}", method=RequestMethod.POST)
     public void shutdown(@PathVariable String id, @PathVariable String pass, @PathVariable String token) {
         if (id.equals(messageHandler.getMessage(ControllerConstants.ID_KEY)) && pass.equals(messageHandler.getMessage(ControllerConstants.PASS_KEY))
-            && token.equals(securityToken.getValue())) {
-            securityToken.setTokenLock(false);
+            && token.equals(securityTokenManager.getValueWithReset())) {
+
             System.exit(ControllerConstants.EXIT_STATUS);
         }
     }
@@ -45,10 +44,9 @@ public class AdminController {
     @RequestMapping(path="/securitytoken", method=RequestMethod.GET)
     public String getSecurityToken() {
 
-        if (!securityToken.isTokenLock()) {
-            securityToken.setValue(GenerateRandomKeys.generateRandomKey(ControllerConstants.TOKEN_LENGTH, ControllerConstants.TOKEN_MODE));
-            securityToken.setTokenLock(true);
-            return securityToken.getValue();
+        if (!securityTokenManager.isTokenLock()) {
+            securityTokenManager.setToken();
+            return securityTokenManager.getValue();
         } else {
             return ControllerConstants.NO_TOKEN_MESSAGE;
         }
@@ -56,8 +54,7 @@ public class AdminController {
 
     @RequestMapping(path="getadminid/{token}", method=RequestMethod.GET)
     public String getAdminId(@PathVariable String token) {
-        if (token.equals(securityToken.getValue())) {
-            securityToken.setTokenLock(false);
+        if (token.equals(securityTokenManager.getValueWithReset())) {
             return messageHandler.getMessage(ControllerConstants.ID_KEY);
         } else {
             return ControllerConstants.NO_TOKEN_MESSAGE;
@@ -66,8 +63,7 @@ public class AdminController {
 
     @RequestMapping(path="getadminpass/{token}", method=RequestMethod.GET)
     public String getAdminPass(@PathVariable String token) {
-        if (token.equals(securityToken.getValue())) {
-            securityToken.setTokenLock(false);
+        if (token.equals(securityTokenManager.getValueWithReset())) {
             return messageHandler.getMessage(ControllerConstants.PASS_KEY);
         } else {
             return ControllerConstants.NO_TOKEN_MESSAGE;
